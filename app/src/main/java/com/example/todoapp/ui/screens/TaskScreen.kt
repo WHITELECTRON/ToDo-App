@@ -1,5 +1,6 @@
 package com.example.todoapp.ui.screens
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -20,21 +21,36 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import com.example.todoapp.data.room_database.Taskitem
 import com.example.todoapp.ui.theme.darkGrey
+import com.example.todoapp.ui.theme.grey
 import com.example.todoapp.viewmodel.TaskViewModel
 
 //@Preview(showBackground = true, showSystemUi = true)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ToDoListScreen(viewModel: TaskViewModel) {
 
 
  val tasks by viewModel.allTasks.collectAsState()
+    var taskToEdit by remember { mutableStateOf<Taskitem?>(null) }
+    var showEditorDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         floatingActionButton = {
             ExtendedFloatingActionButton(
-                onClick = { },
+                onClick = { taskToEdit=null
+                    showEditorDialog=true
+                          },
                 shape = RoundedCornerShape(size = 20.dp),
                 containerColor = darkGrey,
                 contentColor = Color.White,
@@ -69,6 +85,62 @@ fun ToDoListScreen(viewModel: TaskViewModel) {
           text="${tasks.filter{!it.isDone}.size}remaining today",
           color=Color.Gray
          )
+            if(tasks.isEmpty()){
+                Box(
+                    modifier=Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ){
+                    Text(text="No Tasks",
+                        color= grey
+                    )
+                }
+
+            }else {
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding= PaddingValues(bottom = 80.dp)
+
+                ) {
+                    items(
+                        items=tasks,
+                        key={it.id}
+                    ){ task ->
+                        ToDoItem(
+                            item=task,
+                            onEditClick = {
+                                taskToEdit=task
+                                showEditorDialog=true
+                            },
+                            onDeleteClick = {viewModel.deleteTask(task)},
+                            onCheckChange={checked ->viewModel.updateTask(task.copy(isDone=checked))}
+                        ) 
+
+
+                    }
+                }
+            }
         }
+    }
+    if(showEditorDialog)
+    {
+        TaskEditorDialog(
+            task=taskToEdit,
+            onSave={newName->
+             if(taskToEdit==null){
+                 viewModel.addTask(Taskitem(taskName=newName, isDone = false))
+             } else {
+                 taskToEdit?.let { currentTask ->
+                     viewModel.updateTask(currentTask.copy(taskName = newName))
+                 }
+             }
+                showEditorDialog=false
+                taskToEdit=null
+            },
+            onCancel={
+                showEditorDialog=false
+                taskToEdit=null
+            }
+
+        )
     }
 }
